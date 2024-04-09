@@ -1,57 +1,128 @@
-// Função para fazer a requisição HTTP
+const alunosTeorico = [];
+const alunosPratico = [];
+const grupos = {};
+
 function fetchData() {
   fetch('https://sheets.googleapis.com/v4/spreadsheets/1wjSp9kOEwOn4hPg0Px1psUjfC2-yg38OuQXrXRvNrIo/values/grupos!A1:Z200?majorDimension=ROWS&key=AIzaSyAVbkJxfxctVsI0DxtReILS3MYZaTxWoUw')
     .then(response => response.json())
-    .then(data => {displayData1(data.values); displayData2(data.values)} )
+    .then(data => {  processarAlunos(data.values, 1, alunosTeorico); processarAlunos(data.values, 2, alunosPratico); processarGrupos(data.values)})
     .catch(error => console.error('Erro ao recuperar os dados:', error));
 }
 
-function displayData1(data) {
-  const vagasTable = document.getElementById('teorico');
+function processarAlunos(data, tipo, alunos) {
+  const nomeIndex = 0;
+  const pontuacaoIndex = tipo === 1 ? 1 : 2; // 1 para Teórico, 2 para Prático
+  const grupoIndex = 4;
 
-  // Limite de 3 primeiros lugares
+  for (let i = 1; i < data.length; i++) {
+    const aluno = {
+      nome: data[i][nomeIndex],
+      pontuacao: parseInt(data[i][pontuacaoIndex]),
+      grupo: data[i][grupoIndex]
+    };
+    alunos.push(aluno);
+  }
+
+  alunos.sort((a, b) => b.pontuacao - a.pontuacao);
+
+  if (tipo === 1) {
+    //console.log('Alunos (Teórico):', alunosTeorico);
+    preencherTabela(alunosTeorico, 'teorico');
+  } else {
+    //console.log('Alunos (Prático):', alunosPratico);
+    preencherTabela(alunosPratico, 'pratico');
+  }
+}
+
+function preencherTabela(alunos, tabelaId) {
+  const tbody = document.getElementById(tabelaId);
   const limit = 3;
+  tbody.innerHTML = '';
 
-  // Índices das colunas de nome e de teórico
-  const nomeIndex = 0; // Assumindo que a coluna de nome é a primeira (índice 0)
-  const teoricoIndex = 1; // Assumindo que a coluna de teórico é a segunda (índice 1)
+  for (let i = 0; i < alunos.length && i < limit; i++) {
+    const aluno = alunos[i];
+    const row = document.createElement('tr');
 
-  // Exibir apenas os 3 primeiros lugares tanto para Teórico quanto para Prático
-  data.slice(1, limit + 1).forEach((vaga, index) => {
-    const row = vagasTable.insertRow(index);
+    const nomeCell = document.createElement('td');
+    nomeCell.textContent = aluno.nome;
+    row.appendChild(nomeCell);
 
-    // Exibir apenas as colunas de nome e teórico
-    const nomeCell = row.insertCell(0);
-    nomeCell.textContent = vaga[nomeIndex];
+    const pontuacaoCell = document.createElement('td');
+    pontuacaoCell.textContent = aluno.pontuacao;
+    row.appendChild(pontuacaoCell);
 
-    const teoricoCell = row.insertCell(1);
-    teoricoCell.textContent = vaga[teoricoIndex];
-  });
+    const grupoCell = document.createElement('td');
+    grupoCell.textContent = aluno.grupo;
+    row.appendChild(grupoCell);
+
+    tbody.appendChild(row);
+  }
 }
 
 
-function displayData2(data) {
-  const vagasTable = document.getElementById('pratico');
+function processarGrupos(data) {
+  const grupoIndex = 4;
+  const nomeIndex = 0;
+  const pontuacaoIndex = 3;
 
-  // Limite de 3 primeiros lugares
-  const limit = 3;
+  
 
-  // Índices das colunas de nome e de teórico
-  const nomeIndex = 0; // Assumindo que a coluna de nome é a primeira (índice 0)
-  const teoricoIndex = 1; // Assumindo que a coluna de teórico é a segunda (índice 1)
+  for (let i = 1; i < data.length; i++) {
+    const nomeGrupo = data[i][grupoIndex];
+    const nomeAluno = data[i][nomeIndex];
+    const pontuacao = parseInt(data[i][pontuacaoIndex]);
 
-  // Exibir apenas os 3 primeiros lugares tanto para Teórico quanto para Prático
-  data.slice(1, limit + 1).forEach((vaga, index) => {
-    const row = vagasTable.insertRow(index);
+    // Verifica se o grupo já existe no objeto grupos
+    if (!(nomeGrupo in grupos)) {
+      grupos[nomeGrupo] = {
+        quantidadePessoas: 0,
+        notas: [],
+        media: 0
+      };
+    }
 
-    // Exibir apenas as colunas de nome e teórico
-    const nomeCell = row.insertCell(0);
-    nomeCell.textContent = vaga[nomeIndex];
+    // Adiciona a pontuação do aluno ao array de notas do grupo
+    grupos[nomeGrupo].notas.push(pontuacao);
+    // Incrementa a quantidade de pessoas do grupo
+    grupos[nomeGrupo].quantidadePessoas++;
+  }
 
-    const teoricoCell = row.insertCell(1);
-    teoricoCell.textContent = vaga[teoricoIndex];
-  });
+  // Calcula a média de cada grupo
+  for (const grupo in grupos) {
+    const notas = grupos[grupo].notas;
+    const somaNotas = notas.reduce((total, nota) => total + nota, 0);
+    grupos[grupo].media = somaNotas / notas.length;
+  }
+
+  preencherTabelaGrupos();
 }
 
-// Chama a função fetchData ao carregar a página
+function preencherTabelaGrupos() {
+  const tbody = document.getElementById('rankingDeGrupos');
+  tbody.innerHTML = '';
+  console.log(grupos)
+
+  for (const grupo in grupos) {
+    const row = document.createElement('tr');
+
+    const nomeCell = document.createElement('td');
+    nomeCell.textContent = grupo;
+    row.appendChild(nomeCell);
+
+    const quantidadeCell = document.createElement('td');
+    quantidadeCell.textContent = grupos[grupo].quantidadePessoas;
+    row.appendChild(quantidadeCell);
+
+
+
+    const mediaCell = document.createElement('td');
+    mediaCell.textContent = grupos[grupo].media.toFixed(2);
+    row.appendChild(mediaCell);
+
+    tbody.appendChild(row);
+  }
+}
+
+
+
 window.onload = fetchData;
