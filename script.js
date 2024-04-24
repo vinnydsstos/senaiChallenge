@@ -36,7 +36,7 @@ function processarAlunos(data, tipo, alunos) {
 
 function preencherTabela(alunos, tabelaId) {
   const tbody = document.getElementById(tabelaId);
-  const limit = 3;
+  const limit = 10;
   tbody.innerHTML = '';
 
   for (let i = 0; i < alunos.length && i < limit; i++) {
